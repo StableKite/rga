@@ -329,67 +329,75 @@ static int get_buf_size_by_w_h_f(int w, int h, int f) {
 }
 
 int get_buf_from_file_impl(void *buf, int f, int sw, int sh, int index) {
-#ifdef ANDROID
-    const char *inputFilePath = "/data/in%dw%d-h%d-%s.bin";
-#endif
-
-#ifdef LINUX
-    const char *inputFilePath = "/usr/data/in%dw%d-h%d-%s.bin";
-#endif
-
     char filePath[100];
-
-    snprintf(filePath, 100, inputFilePath, index, sw, sh, translate_format_str(f));
+#ifdef ANDROID
+    snprintf(filePath, sizeof(filePath), "/data/in%dw%d-h%d-%s.bin",
+             index, sw, sh, translate_format_str(f));
+#elif defined(LINUX)
+    snprintf(filePath, sizeof(filePath), "/usr/data/in%dw%d-h%d-%s.bin",
+             index, sw, sh, translate_format_str(f));
+#else
+#error "Unsupported platform"
+#endif
 
     FILE *file = fopen(filePath, "rb");
     if (!file) {
         fprintf(stderr, "Could not open %s\n", filePath);
         return -EINVAL;
     }
-    fread(buf, get_buf_size_by_w_h_f(sw, sh, f), 1, file);
+    const size_t size = (size_t)get_buf_size_by_w_h_f(sw, sh, f);
+    if (fread(buf, 1, size, file) != size) {
+        fprintf(stderr, "Could not read %zu bytes from %s\n", size, filePath);
+        fclose(file);
+        return -EIO;
+    }
     fclose(file);
 
     return 0;
 }
 
 int get_buf_from_file_FBC_impl(void *buf, int f, int sw, int sh, int index) {
-#ifdef ANDROID
-    const char *inputFilePath = "/data/in%dw%d-h%d-%s-afbc.bin";
-#endif
-
-#ifdef LINUX
-    const char *inputFilePath = "/usr/data/in%dw%d-h%d-%s-afbc.bin";
-#endif
-
     char filePath[100];
     char fstring[30];
 
     get_string_by_format(fstring, f);
-    snprintf(filePath, 100, inputFilePath, index, sw, sh, fstring);
+#ifdef ANDROID
+    snprintf(filePath, sizeof(filePath), "/data/in%dw%d-h%d-%s-afbc.bin",
+             index, sw, sh, fstring);
+#elif defined(LINUX)
+    snprintf(filePath, sizeof(filePath), "/usr/data/in%dw%d-h%d-%s-afbc.bin",
+             index, sw, sh, fstring);
+#else
+#error "Unsupported platform"
+#endif
 
     FILE *file = fopen(filePath, "rb");
     if (!file) {
         fprintf(stderr, "Could not open %s\n", filePath);
         return -EINVAL;
     }
-    fread(buf, get_buf_size_by_w_h_f(sw, sh, f) * 1.5, 1, file);
+    const size_t size = (size_t)(get_buf_size_by_w_h_f(sw, sh, f) * 1.5);
+    if (fread(buf, 1, size, file) != size) {
+        fprintf(stderr, "Could not read %zu bytes from %s\n", size, filePath);
+        fclose(file);
+        return -EIO;
+    }
     fclose(file);
 
     return 0;
 }
 
 int output_buf_data_to_file_impl(void *buf, int f, int sw, int sh, int index) {
-#ifdef ANDROID
-    const char *outputFilePath = "/data/out%dw%d-h%d-%s.bin";
-#endif
-
-#ifdef LINUX
-    const char *outputFilePath = "/usr/data/out%dw%d-h%d-%s.bin";
-#endif
-
     char filePath[100];
-
-    snprintf(filePath, 100, outputFilePath, index, sw, sh, translate_format_str(f));
+#ifdef ANDROID
+    snprintf(filePath, sizeof(filePath), "/data/out%dw%d-h%d-%s.bin",
+             index, sw, sh, translate_format_str(f));
+#elif defined(LINUX)
+    snprintf(filePath, sizeof(filePath), "/usr/data/out%dw%d-h%d-%s.bin",
+             index, sw, sh, translate_format_str(f));
+#else
+#error "Unsupported platform"
+#endif
 
     FILE *file = fopen(filePath, "wb+");
     if (!file) {
@@ -397,26 +405,31 @@ int output_buf_data_to_file_impl(void *buf, int f, int sw, int sh, int index) {
         return false;
     } else
         fprintf(stderr, "open %s and write ok\n", filePath);
-    fwrite(buf, get_buf_size_by_w_h_f(sw, sh, f), 1, file);
+    const size_t size = (size_t)get_buf_size_by_w_h_f(sw, sh, f);
+    if (fwrite(buf, 1, size, file) != size) {
+        fprintf(stderr, "Could not write %zu bytes to %s\n", size, filePath);
+        fclose(file);
+        return -EIO;
+    }
     fclose(file);
 
     return 0;
 }
 
 int output_buf_data_to_file_FBC_impl(void *buf, int f, int sw, int sh, int index) {
-#ifdef ANDROID
-    const char *outputFilePath = "/data/out%dw%d-h%d-%s-afbc.bin";
-#endif
-
-#ifdef LINUX
-    const char *outputFilePath = "/usr/data/out%dw%d-h%d-%s-afbc.bin";
-#endif
-
     char filePath[100];
     char fstring[30];
 
     get_string_by_format(fstring, f);
-    snprintf(filePath, 100, outputFilePath, index, sw, sh, fstring);
+#ifdef ANDROID
+    snprintf(filePath, sizeof(filePath), "/data/out%dw%d-h%d-%s-afbc.bin",
+             index, sw, sh, fstring);
+#elif defined(LINUX)
+    snprintf(filePath, sizeof(filePath), "/usr/data/out%dw%d-h%d-%s-afbc.bin",
+             index, sw, sh, fstring);
+#else
+#error "Unsupported platform"
+#endif
 
     FILE *file = fopen(filePath, "wb+");
     if (!file) {
@@ -424,7 +437,12 @@ int output_buf_data_to_file_FBC_impl(void *buf, int f, int sw, int sh, int index
         return false;
     } else
         fprintf(stderr, "open %s and write ok\n", filePath);
-    fwrite(buf, get_buf_size_by_w_h_f(sw, sh, f) * 1.5, 1, file);
+    const size_t size = (size_t)(get_buf_size_by_w_h_f(sw, sh, f) * 1.5);
+    if (fwrite(buf, 1, size, file) != size) {
+        fprintf(stderr, "Could not write %zu bytes to %s\n", size, filePath);
+        fclose(file);
+        return -EIO;
+    }
     fclose(file);
 
     return 0;

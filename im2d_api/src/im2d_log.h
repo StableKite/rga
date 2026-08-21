@@ -39,6 +39,9 @@ typedef enum {
 #define LOG_LEVEL_CHECK(level) ((level) >= rga_log_level_get())
 
 const char *rga_get_error_type_str(int type);
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((format(printf, 1, 2)))
+#endif
 int rga_error_msg_set(const char* format, ...);
 
 /* log property */

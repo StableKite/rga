@@ -2,93 +2,96 @@ cmake_minimum_required(VERSION 3.12)
 
 include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
 
-if (EXISTS ${BUILD_TOOLCHAINS_PATH})
-    message("load ${BUILD_TOOLCHAINS_PATH}")
+if (DEFINED BUILD_TOOLCHAINS_PATH AND EXISTS "${BUILD_TOOLCHAINS_PATH}")
+    message(STATUS "Loading toolchain settings from ${BUILD_TOOLCHAINS_PATH}")
     include(${BUILD_TOOLCHAINS_PATH})
 endif()
 
-project(rga)
+project(rga LANGUAGES C CXX)
 
-if(NOT CMAKE_BUILD_TYPE)
-    message("default to Release build for GCC builds")
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Defaulting to Release build")
     set(CMAKE_BUILD_TYPE Release CACHE STRING
-        "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel."
+        "Choose the build type: Debug, Release, RelWithDebInfo, MinSizeRel."
         FORCE)
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O2 -pthread")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -pthread -lm -Wno-unused-command-line-argument")
-set(RGA_SAMPLES_ENABLE true)
+if(NOT DEFINED CMAKE_BUILD_TARGET OR CMAKE_BUILD_TARGET STREQUAL "")
+    if(UNIX AND NOT ANDROID)
+        set(CMAKE_BUILD_TARGET cmake_linux CACHE STRING "RGA build target" FORCE)
+    endif()
+endif()
+
+option(RGA_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
+option(RGA_NATIVE_OPTIMIZATION "Optimize Release builds for the CPU running the compiler" ON)
+option(RGA_ENABLE_LTO "Enable interprocedural/link-time optimization in Release builds" ON)
+option(RGA_BUILD_SAMPLES "Build the im2d API demo" ON)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
 
 add_library(COMMON_LIBS INTERFACE)
 
 if(CMAKE_BUILD_TARGET STREQUAL android_ndk)
-    message("cmake build android ndk")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error -DLOG_TAG=librga")
-    add_compile_options(-DLINUX)
-    add_compile_options(-DANDROID_VNDK)
-    string(REPLACE "-DANDROID" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
-    target_link_libraries(COMMON_LIBS INTERFACE
-        log
-    )
+    message(STATUS "RGA target: Android NDK")
+    add_compile_definitions(LINUX ANDROID_VNDK)
+    add_compile_definitions(LOG_TAG=librga)
+    target_link_libraries(COMMON_LIBS INTERFACE log)
+elseif(CMAKE_BUILD_TARGET STREQUAL buildroot)
+    message(STATUS "RGA target: Buildroot")
+    add_compile_definitions(LINUX)
+elseif(CMAKE_BUILD_TARGET STREQUAL cmake_linux)
+    message(STATUS "RGA target: native Linux")
+    add_compile_definitions(LINUX)
+elseif(CMAKE_BUILD_TARGET STREQUAL rt_thread)
+    message(STATUS "RGA target: RT-Thread")
+    add_compile_definitions(LINUX RT_THREAD RGA_SYNC_DISABLE RGA_UTILS_DRM_DISABLE)
+else()
+    message(FATAL_ERROR "Unsupported CMAKE_BUILD_TARGET='${CMAKE_BUILD_TARGET}'")
 endif()
 
-if(CMAKE_BUILD_TARGET STREQUAL buildroot)
-    message("cmake build buildroot")
-    add_compile_options(-DLINUX)
-endif()
-
-if(CMAKE_BUILD_TARGET STREQUAL cmake_linux)
-    message("RGA build with cmake")
-    add_compile_options(-DLINUX)
-    # TO support pass external CMAKE_CXX_FLAGS
-    set(CMAKE_CXX_FLAGS_EXT "${CMAKE_CXX_FLAGS} -fdata-sections -ffunction-sections -fno-exceptions -fno-rtti")
-
-    if (NOT DEFINED CMAKE_C_COMPILER)
-        message(FATAL_ERROR "RGA: CMAKE_C_COMPILER not define")
-    endif()
-
-    if (NOT DEFINED CMAKE_CXX_COMPILER)
-        message(FATAL_ERROR "RGA: CMAKE_CXX_COMPILER not define")
+if(NOT CMAKE_BUILD_TARGET STREQUAL rt_thread)
+    find_package(Threads REQUIRED)
+    target_link_libraries(COMMON_LIBS INTERFACE Threads::Threads)
+    if(UNIX AND NOT APPLE)
+        target_link_libraries(COMMON_LIBS INTERFACE m)
     endif()
 endif()
 
-if (CMAKE_BUILD_TARGET STREQUAL rt_thread)
-    message("cmake build RT-Thread")
-    add_compile_options(-DLINUX -DRT_THREAD -DRGA_SYNC_DISABLE -DRGA_UTILS_DRM_DISABLE)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+    add_compile_options(-Wall -Wextra -Wformat=2)
+    # The strict policy is the default for Linux/Buildroot. Preserve the
+    # historical Android/RT-Thread behavior, where external platform headers
+    # and toolchains may intentionally carry warnings outside librga's control.
+    if(RGA_WARNINGS_AS_ERRORS
+       AND NOT CMAKE_BUILD_TARGET STREQUAL android_ndk
+       AND NOT CMAKE_BUILD_TARGET STREQUAL rt_thread)
+        add_compile_options(-Werror)
+    endif()
+endif()
 
-    set(IM2D_RT_THREAD_INCLUDE
-        ${RTOS_BSP}/include/
-        ${RTOS_BSP}/components/drivers/include/
-        ${RTOS_BSP}/components/finsh
-        ${RTOS_BSP}/bsp/rockchip/rk2118/
-        ${RTOS_BSP}/rt-thread/include
-        ${RTOS_BSP}/bsp/maix3/
-        ${RTOS_BSP}/rt-thread/components/finsh/
-        ${RTOS_BSP}/bsp/maix3/c908/
-    )
+if(RGA_NATIVE_OPTIMIZATION AND CMAKE_BUILD_TARGET STREQUAL cmake_linux)
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+        add_compile_options($<$<CONFIG:Release>:-march=native> $<$<CONFIG:Release>:-mtune=native>)
+    endif()
+endif()
 
-    set(IM2D_3RDPARTY_INCLUDE
-        ${IM2D_3RDPARTY_INCLUDE}
-        ${IM2D_RT_THREAD_INCLUDE}
-    )
-
-    string(REPLACE "-pthread" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-    string(REPLACE "-pthread" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
-    set(WARNING_IGNORE "-Wno-maybe-uninitialized -Wno-unused-but-set-variable -Wno-unused-variable -Wno-incompatible-pointer-types -Wno-format -Wno-unused-function -Wno-class-memaccess")
-
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARNING_IGNORE}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARNING_IGNORE}")
-    set(RGA_SAMPLES_ENABLE false)
+if(RGA_ENABLE_LTO AND NOT CMAKE_BUILD_TARGET STREQUAL rt_thread)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT RGA_IPO_SUPPORTED OUTPUT RGA_IPO_ERROR)
+    if(RGA_IPO_SUPPORTED)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+    else()
+        message(WARNING "LTO/IPO requested but not supported: ${RGA_IPO_ERROR}")
+    endif()
 endif()
 
 if (BUILD_WITH_VERSION STREQUAL true)
     im2d_api_extract_version()
 endif()
 
-# source code config
+# Sources common to every supported userspace build.
 set(IM2D_SRCS
     core/utils/android_utils/src/android_utils.cpp
     core/utils/drm_utils/src/drm_utils.cpp
@@ -105,10 +108,23 @@ set(IM2D_SRCS
 )
 
 set(IM2D_3RDPARTY_INCLUDE
-    ${IM2D_3RDPARTY_INCLUDE}
     ./core/3rdparty/libdrm/include/drm
     ./core/3rdparty/android_hal
 )
+
+if(CMAKE_BUILD_TARGET STREQUAL rt_thread)
+    set(IM2D_RT_THREAD_INCLUDE
+        ${RTOS_BSP}/include/
+        ${RTOS_BSP}/components/drivers/include/
+        ${RTOS_BSP}/components/finsh
+        ${RTOS_BSP}/bsp/rockchip/rk2118/
+        ${RTOS_BSP}/rt-thread/include
+        ${RTOS_BSP}/bsp/maix3/
+        ${RTOS_BSP}/rt-thread/components/finsh/
+        ${RTOS_BSP}/bsp/maix3/c908/
+    )
+    list(APPEND IM2D_3RDPARTY_INCLUDE ${IM2D_RT_THREAD_INCLUDE})
+endif()
 
 set(IM2D_INCLUDE
     ./
@@ -121,6 +137,8 @@ set(IM2D_INCLUDE
     ${IM2D_3RDPARTY_INCLUDE}
 )
 
+# C++ core used by normal Linux/Android builds. RT-Thread intentionally uses
+# the smaller adapter path required by that operating system.
 set(IM2D_CORE_CPP_SRCS
     core/RockchipRga.cpp
     core/GrallocOps.cpp
@@ -160,71 +178,54 @@ set(IM2D_PUBLIC_CPP_HEADER
     include/GrallocOps.h
 )
 
-#set source
 if (RGA_SOURCE_CODE_TYPE STREQUAL c)
     set_source_files_properties(${IM2D_SRCS} PROPERTIES LANGUAGE C COMPILE_FLAGS "-x c")
 elseif(NOT CMAKE_BUILD_TARGET STREQUAL rt_thread)
-    set(IM2D_SRCS
-        ${IM2D_SRCS}
-        ${IM2D_CORE_CPP_SRCS}
-    )
-
-    set(IM2D_INCLUDE
-        ${IM2D_INCLUDE}
-        ${IM2D_3RDPARTY_CPP_INCLUDE}
-    )
-
-    set(IM2D_PUBLIC_HEADER
-        ${IM2D_PUBLIC_HEADER}
-        ${IM2D_PUBLIC_CPP_HEADER}
-    )
+    list(APPEND IM2D_SRCS ${IM2D_CORE_CPP_SRCS})
+    list(APPEND IM2D_INCLUDE ${IM2D_3RDPARTY_CPP_INCLUDE})
+    list(APPEND IM2D_PUBLIC_HEADER ${IM2D_PUBLIC_CPP_HEADER})
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_EXT} -DUN_NEED_GL")
-
-#build object
 set(OBJECT_NAME ${PROJECT_NAME}-object)
-
 add_library(${OBJECT_NAME} OBJECT ${IM2D_SRCS})
-
 target_include_directories(${OBJECT_NAME} PRIVATE ${IM2D_INCLUDE})
-# Some older compilers need to explicitly set this property
-# After setting this property, it can be used to generate a shared library
-set_target_properties(${OBJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE 1)
+set_target_properties(${OBJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_compile_definitions(${OBJECT_NAME} PRIVATE UN_NEED_GL)
 target_link_libraries(${OBJECT_NAME} PRIVATE COMMON_LIBS)
 
-# build shared lib
-set(SHARED_LIB_NAME ${PROJECT_NAME})
-
-add_library(${SHARED_LIB_NAME} SHARED $<TARGET_OBJECTS:${OBJECT_NAME}>)
-
-target_include_directories(${SHARED_LIB_NAME} PRIVATE ${IM2D_INCLUDE})
-target_link_libraries(${SHARED_LIB_NAME} PRIVATE COMMON_LIBS)
-
-if(NOT DEFINED IM2D_API_VERSION)
-    set_target_properties(${SHARED_LIB_NAME} PROPERTIES
-        PUBLIC_HEADER "${IM2D_PUBLIC_HEADER}")
-else ()
-    message("Generated im2d api version: v${IM2D_API_VERSION}")
-    set_target_properties(${SHARED_LIB_NAME} PROPERTIES
-        PUBLIC_HEADER "${IM2D_PUBLIC_HEADER}"
-        VERSION ${IM2D_API_VERSION} SOVERSION ${IM2D_API_VERSION_MAJOR})
+if(CMAKE_BUILD_TARGET STREQUAL cmake_linux)
+    target_compile_options(${OBJECT_NAME} PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions;-fno-rtti>
+        -fdata-sections -ffunction-sections)
 endif()
 
-# build static lib
+set(SHARED_LIB_NAME ${PROJECT_NAME})
+add_library(${SHARED_LIB_NAME} SHARED $<TARGET_OBJECTS:${OBJECT_NAME}>)
+target_include_directories(${SHARED_LIB_NAME} PRIVATE ${IM2D_INCLUDE})
+target_link_libraries(${SHARED_LIB_NAME} PRIVATE COMMON_LIBS)
+if(CMAKE_BUILD_TARGET STREQUAL cmake_linux AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+    target_link_options(${SHARED_LIB_NAME} PRIVATE -Wl,--gc-sections)
+endif()
+
+if(NOT DEFINED IM2D_API_VERSION)
+    set_target_properties(${SHARED_LIB_NAME} PROPERTIES PUBLIC_HEADER "${IM2D_PUBLIC_HEADER}")
+else()
+    message(STATUS "Generated im2d API version: v${IM2D_API_VERSION}")
+    set_target_properties(${SHARED_LIB_NAME} PROPERTIES
+        PUBLIC_HEADER "${IM2D_PUBLIC_HEADER}"
+        VERSION ${IM2D_API_VERSION}
+        SOVERSION ${IM2D_API_VERSION_MAJOR})
+endif()
+
 set(STATIC_LIB_NAME ${PROJECT_NAME}-static)
-
 add_library(${STATIC_LIB_NAME} STATIC $<TARGET_OBJECTS:${OBJECT_NAME}>)
-
 target_include_directories(${STATIC_LIB_NAME} PRIVATE ${IM2D_INCLUDE})
 set_target_properties(${STATIC_LIB_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 target_link_libraries(${STATIC_LIB_NAME} PRIVATE COMMON_LIBS)
 
-# If cmake version is 3.5.1, FIXIT
 if (NOT DEFINED CMAKE_INSTALL_LIBDIR)
     set(CMAKE_INSTALL_LIBDIR lib)
 endif()
-
 if (NOT DEFINED CMAKE_INSTALL_INCLUDEDIR)
     set(CMAKE_INSTALL_INCLUDEDIR include)
 endif()
@@ -232,14 +233,11 @@ endif()
 install(TARGETS ${SHARED_LIB_NAME}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(TARGETS  ${STATIC_LIB_NAME}
+install(TARGETS ${STATIC_LIB_NAME}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-if (RGA_SAMPLES_ENABLE STREQUAL true)
-    # build im2d api demo
+if (RGA_BUILD_SAMPLES AND NOT CMAKE_BUILD_TARGET STREQUAL rt_thread)
     add_subdirectory(samples/im2d_api_demo)
-    #add_subdirectory(samples)
-
     if (DEFINED RGA_ENABLE_INSTALL_SAMPLES)
         install(DIRECTORY samples DESTINATION ${CMAKE_INSTALL_PREFIX})
     endif()

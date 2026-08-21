@@ -115,9 +115,7 @@ void draw_image(char *buffer, int width, int height, int format) {
 int read_image_from_fbc_file(void *buf, const char *path, int sw, int sh, int fmt, int index) {
     int size;
     char filePath[100];
-    const char *inputFbcFilePath = "%s/in%dw%d-h%d-%s-fbc.bin";
-
-    snprintf(filePath, 100, inputFbcFilePath,
+    snprintf(filePath, sizeof(filePath), "%s/in%dw%d-h%d-%s-fbc.bin",
              path, index, sw, sh, translate_format_str(fmt));
 
     FILE *file = fopen(filePath, "rb");
@@ -128,7 +126,11 @@ int read_image_from_fbc_file(void *buf, const char *path, int sw, int sh, int fm
 
     size = sw * sh * get_bpp_from_format(fmt) * 1.5;
 
-    fread(buf, size, 1, file);
+    if (fread(buf, 1, (size_t)size, file) != (size_t)size) {
+        fprintf(stderr, "Could not read %d bytes from %s\n", size, filePath);
+        fclose(file);
+        return -EIO;
+    }
 
     fclose(file);
 
@@ -138,9 +140,7 @@ int read_image_from_fbc_file(void *buf, const char *path, int sw, int sh, int fm
 int read_image_from_file(void *buf, const char *path, int sw, int sh, int fmt, int index) {
     int size;
     char filePath[100];
-    const char *inputFilePath = "%s/in%dw%d-h%d-%s.bin";
-
-    snprintf(filePath, 100, inputFilePath,
+    snprintf(filePath, sizeof(filePath), "%s/in%dw%d-h%d-%s.bin",
              path, index, sw, sh, translate_format_str(fmt));
 
     FILE *file = fopen(filePath, "rb");
@@ -151,7 +151,11 @@ int read_image_from_file(void *buf, const char *path, int sw, int sh, int fmt, i
 
     size = sw * sh * get_bpp_from_format(fmt);
 
-    fread(buf, size, 1, file);
+    if (fread(buf, 1, (size_t)size, file) != (size_t)size) {
+        fprintf(stderr, "Could not read %d bytes from %s\n", size, filePath);
+        fclose(file);
+        return -EIO;
+    }
 
     fclose(file);
 
@@ -161,9 +165,7 @@ int read_image_from_file(void *buf, const char *path, int sw, int sh, int fmt, i
 int write_image_to_fbc_file(void *buf, const char *path, int sw, int sh, int fmt, int index) {
     int size;
     char filePath[100];
-    const char *outputFbcFilePath = "%s/out%dw%d-h%d-%s-fbc.bin";
-
-    snprintf(filePath, 100, outputFbcFilePath,
+    snprintf(filePath, sizeof(filePath), "%s/out%dw%d-h%d-%s-fbc.bin",
              path, index, sw, sh, translate_format_str(fmt));
 
     FILE *file = fopen(filePath, "wb+");
@@ -176,7 +178,11 @@ int write_image_to_fbc_file(void *buf, const char *path, int sw, int sh, int fmt
 
     size = sw * sh * get_bpp_from_format(fmt) * 1.5;
 
-    fwrite(buf, size, 1, file);
+    if (fwrite(buf, 1, (size_t)size, file) != (size_t)size) {
+        fprintf(stderr, "Could not write %d bytes to %s\n", size, filePath);
+        fclose(file);
+        return -EIO;
+    }
 
     fclose(file);
 
@@ -186,9 +192,7 @@ int write_image_to_fbc_file(void *buf, const char *path, int sw, int sh, int fmt
 int write_image_to_file(void *buf, const char *path, int sw, int sh, int fmt, int index) {
     int size;
     char filePath[100];
-    const char *outputFilePath = "%s/out%dw%d-h%d-%s.bin";
-
-    snprintf(filePath, 100, outputFilePath,
+    snprintf(filePath, sizeof(filePath), "%s/out%dw%d-h%d-%s.bin",
              path, index, sw, sh, translate_format_str(fmt));
 
     FILE *file = fopen(filePath, "wb+");
@@ -201,7 +205,11 @@ int write_image_to_file(void *buf, const char *path, int sw, int sh, int fmt, in
 
     size = sw * sh * get_bpp_from_format(fmt);
 
-    fwrite(buf, size, 1, file);
+    if (fwrite(buf, 1, (size_t)size, file) != (size_t)size) {
+        fprintf(stderr, "Could not write %d bytes to %s\n", size, filePath);
+        fclose(file);
+        return -EIO;
+    }
 
     fclose(file);
 

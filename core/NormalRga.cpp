@@ -243,6 +243,8 @@ int NormalRgaPaletteTable(buffer_handle_t dst,
     int ret = 0;
     drm_rga_t tmpRects,relRects;
     struct rga_req rgaReg;
+    rga2_req compat_req;
+    void *ioc_req = NULL;
     void *srcBuf = NULL;
     void *dstBuf = NULL;
     RECT clip;
@@ -388,9 +390,13 @@ int RgaBlit(rga_info *src, rga_info *dst, rga_info *src1) {
     float vScale = 1;
     struct rga_interp interp;
     int ret = 0;
-    rga_rect_t relSrcRect,tmpSrcRect,relDstRect,tmpDstRect;
-    rga_rect_t relSrc1Rect,tmpSrc1Rect;
-    struct rga_req rgaReg,tmprgaReg;
+    rga_rect_t relSrcRect, relDstRect;
+    rga_rect_t relSrc1Rect;
+#ifdef ANDROID
+    rga_rect_t tmpSrcRect, tmpDstRect, tmpSrc1Rect;
+#endif
+    struct rga_req rgaReg;
+    rga2_req compat_req;
     unsigned int blend;
     unsigned int yuvToRgbMode;
     bool perpixelAlpha = 0;
@@ -1124,21 +1130,21 @@ int RgaBlit(rga_info *src, rga_info *dst, rga_info *src1) {
                                    RkRgaGetRgaFormat(relDstRect.format),0);
 #else
         NormalRgaSetSrcVirtualInfo(&rgaReg, (unsigned long)srcBuf,
-                                   (unsigned int)srcBuf + srcVirW * srcVirH,
-                                   (unsigned int)srcBuf + srcVirW * srcVirH * 5/4,
+                                   (uintptr_t)srcBuf + srcVirW * srcVirH,
+                                   (uintptr_t)srcBuf + srcVirW * srcVirH * 5/4,
                                    srcVirW, srcVirH,
                                    RkRgaGetRgaFormat(relSrcRect.format),0);
         /* src1 */
         if (src1)
             NormalRgaSetPatVirtualInfo(&rgaReg, (unsigned long)src1Buf,
-                                       (unsigned int)src1Buf + src1VirW * src1VirH,
-                                       (unsigned int)src1Buf + src1VirW * src1VirH * 5/4,
+                                       (uintptr_t)src1Buf + src1VirW * src1VirH,
+                                       (uintptr_t)src1Buf + src1VirW * src1VirH * 5/4,
                                        src1VirW, src1VirH, &clip,
                                        RkRgaGetRgaFormat(relSrc1Rect.format),0);
         /*dst*/
         NormalRgaSetDstVirtualInfo(&rgaReg, (unsigned long)dstBuf,
-                                   (unsigned int)dstBuf + dstVirW * dstVirH,
-                                   (unsigned int)dstBuf + dstVirW * dstVirH * 5/4,
+                                   (uintptr_t)dstBuf + dstVirW * dstVirH,
+                                   (uintptr_t)dstBuf + dstVirW * dstVirH * 5/4,
                                    dstVirW, dstVirH, &clip,
                                    RkRgaGetRgaFormat(relDstRect.format),0);
 
@@ -1167,9 +1173,9 @@ int RgaBlit(rga_info *src, rga_info *dst, rga_info *src1) {
                                        srcVirW, srcVirH,
                                        RkRgaGetRgaFormat(relSrcRect.format),0);
 #else
-            NormalRgaSetSrcVirtualInfo(&rgaReg, (unsigned int)srcBuf,
-                                       (unsigned int)srcBuf + srcVirW * srcVirH,
-                                       (unsigned int)srcBuf + srcVirW * srcVirH * 5/4,
+            NormalRgaSetSrcVirtualInfo(&rgaReg, (uintptr_t)srcBuf,
+                                       (uintptr_t)srcBuf + srcVirW * srcVirH,
+                                       (uintptr_t)srcBuf + srcVirW * srcVirH * 5/4,
                                        srcVirW, srcVirH,
                                        RkRgaGetRgaFormat(relSrcRect.format),0);
 #endif
@@ -1198,9 +1204,9 @@ int RgaBlit(rga_info *src, rga_info *dst, rga_info *src1) {
                                            src1VirW, src1VirH, &clip,
                                            RkRgaGetRgaFormat(relSrc1Rect.format),0);
 #else
-                NormalRgaSetPatVirtualInfo(&rgaReg, (unsigned int)src1Buf,
-                                           (unsigned int)src1Buf + src1VirW * src1VirH,
-                                           (unsigned int)src1Buf + src1VirW * src1VirH * 5/4,
+                NormalRgaSetPatVirtualInfo(&rgaReg, (uintptr_t)src1Buf,
+                                           (uintptr_t)src1Buf + src1VirW * src1VirH,
+                                           (uintptr_t)src1Buf + src1VirW * src1VirH * 5/4,
                                            src1VirW, src1VirH, &clip,
                                            RkRgaGetRgaFormat(relSrc1Rect.format),0);
 #endif
@@ -1229,9 +1235,9 @@ int RgaBlit(rga_info *src, rga_info *dst, rga_info *src1) {
                                        dstVirW, dstVirH, &clip,
                                        RkRgaGetRgaFormat(relDstRect.format),0);
 #else
-            NormalRgaSetDstVirtualInfo(&rgaReg, (unsigned int)dstBuf,
-                                       (unsigned int)dstBuf + dstVirW * dstVirH,
-                                       (unsigned int)dstBuf + dstVirW * dstVirH * 5/4,
+            NormalRgaSetDstVirtualInfo(&rgaReg, (uintptr_t)dstBuf,
+                                       (uintptr_t)dstBuf + dstVirW * dstVirH,
+                                       (uintptr_t)dstBuf + dstVirW * dstVirH * 5/4,
                                        dstVirW, dstVirH, &clip,
                                        RkRgaGetRgaFormat(relDstRect.format),0);
 #endif
@@ -1294,21 +1300,21 @@ int RgaBlit(rga_info *src, rga_info *dst, rga_info *src1) {
 
 #else
         NormalRgaSetSrcVirtualInfo(&rgaReg, srcFd != -1 ? srcFd : 0,
-                                   (unsigned int)srcBuf,
-                                   (unsigned int)srcBuf + srcVirW * srcVirH,
+                                   (uintptr_t)srcBuf,
+                                   (uintptr_t)srcBuf + srcVirW * srcVirH,
                                    srcVirW, srcVirH,
                                    RkRgaGetRgaFormat(relSrcRect.format),0);
         /* src1 */
         if (src1)
             NormalRgaSetPatVirtualInfo(&rgaReg, src1Fd != -1 ? src1Fd : 0,
-                                       (unsigned int)src1Buf,
-                                       (unsigned int)src1Buf + src1VirW * src1VirH,
+                                       (uintptr_t)src1Buf,
+                                       (uintptr_t)src1Buf + src1VirW * src1VirH,
                                        src1VirW, src1VirH, &clip,
                                        RkRgaGetRgaFormat(relSrc1Rect.format),0);
         /*dst*/
         NormalRgaSetDstVirtualInfo(&rgaReg, dstFd != -1 ? dstFd : 0,
-                                   (unsigned int)dstBuf,
-                                   (unsigned int)dstBuf + dstVirW * dstVirH,
+                                   (uintptr_t)dstBuf,
+                                   (uintptr_t)dstBuf + dstVirW * dstVirH,
                                    dstVirW, dstVirH, &clip,
                                    RkRgaGetRgaFormat(relDstRect.format),0);
 
@@ -1459,8 +1465,6 @@ int RgaBlit(rga_info *src, rga_info *dst, rga_info *src1) {
 
     switch (ctx->driver) {
         case RGA_DRIVER_IOC_RGA2:
-            rga2_req compat_req;
-
             memset(&compat_req, 0x0, sizeof(compat_req));
             NormalRgaCompatModeConvertRga2(&compat_req, &rgaReg);
 
@@ -1525,8 +1529,12 @@ int RgaCollorFill(rga_info *dst) {
     int dstFd = -1;
     int ret = 0;
     unsigned int color = 0x00000000;
-    rga_rect_t relDstRect,tmpDstRect;
+    rga_rect_t relDstRect;
+#ifdef ANDROID
+    rga_rect_t tmpDstRect;
+#endif
     struct rga_req rgaReg;
+    rga2_req compat_req;
     COLOR_FILL fillColor ;
     void *dstBuf = NULL;
     RECT clip;
@@ -1642,9 +1650,9 @@ int RgaCollorFill(rga_info *dst) {
                                    RkRgaGetRgaFormat(relDstRect.format),0);
 #else
         /*dst*/
-        NormalRgaSetDstVirtualInfo(&rgaReg, (unsigned int)dstBuf,
-                                   (unsigned int)dstBuf + dstVirW * dstVirH,
-                                   (unsigned int)dstBuf + dstVirW * dstVirH * 5/4,
+        NormalRgaSetDstVirtualInfo(&rgaReg, (uintptr_t)dstBuf,
+                                   (uintptr_t)dstBuf + dstVirW * dstVirH,
+                                   (uintptr_t)dstBuf + dstVirW * dstVirH * 5/4,
                                    dstVirW, dstVirH, &clip,
                                    RkRgaGetRgaFormat(relDstRect.format),0);
 #endif
@@ -1672,9 +1680,9 @@ int RgaCollorFill(rga_info *dst) {
                                        dstVirW, dstVirH, &clip,
                                        RkRgaGetRgaFormat(relDstRect.format),0);
 #else
-            NormalRgaSetDstVirtualInfo(&rgaReg, (unsigned int)dstBuf,
-                                       (unsigned int)dstBuf + dstVirW * dstVirH,
-                                       (unsigned int)dstBuf + dstVirW * dstVirH * 5/4,
+            NormalRgaSetDstVirtualInfo(&rgaReg, (uintptr_t)dstBuf,
+                                       (uintptr_t)dstBuf + dstVirW * dstVirH,
+                                       (uintptr_t)dstBuf + dstVirW * dstVirH * 5/4,
                                        dstVirW, dstVirH, &clip,
                                        RkRgaGetRgaFormat(relDstRect.format),0);
 #endif
@@ -1700,8 +1708,8 @@ int RgaCollorFill(rga_info *dst) {
 #else
         /*dst*/
         NormalRgaSetDstVirtualInfo(&rgaReg, dstFd != -1 ? dstFd : 0,
-                                   (unsigned int)dstBuf,
-                                   (unsigned int)dstBuf + dstVirW * dstVirH,
+                                   (uintptr_t)dstBuf,
+                                   (uintptr_t)dstBuf + dstVirW * dstVirH,
                                    dstVirW, dstVirH, &clip,
                                    RkRgaGetRgaFormat(relDstRect.format),0);
 #endif
@@ -1746,8 +1754,6 @@ int RgaCollorFill(rga_info *dst) {
 
     switch (ctx->driver) {
         case RGA_DRIVER_IOC_RGA2:
-            rga2_req compat_req;
-
             memset(&compat_req, 0x0, sizeof(compat_req));
             NormalRgaCompatModeConvertRga2(&compat_req, &rgaReg);
 
@@ -1785,8 +1791,6 @@ int RgaCollorFill(rga_info *dst) {
 int RgaCollorPalette(rga_info *src, rga_info *dst, rga_info *lut) {
 
     struct rgaContext *ctx = rgaCtx;
-    struct rga_req  Rga_Request;
-    struct rga_req  Rga_Request2;
     int srcVirW ,srcVirH ,srcActW ,srcActH ,srcXPos ,srcYPos;
     int dstVirW ,dstVirH ,dstActW ,dstActH ,dstXPos ,dstYPos;
     int lutVirW ,lutVirH ,lutActW ,lutActH ,lutXPos ,lutYPos;
@@ -1795,8 +1799,13 @@ int RgaCollorPalette(rga_info *src, rga_info *dst, rga_info *lut) {
     int srcFd = -1;
     int lutFd = -1;
     int ret = 0;
-    rga_rect_t relSrcRect,tmpSrcRect,relDstRect,tmpDstRect, relLutRect, tmpLutRect;
-    struct rga_req rgaReg,tmprgaReg;
+    rga_rect_t relSrcRect, relDstRect, relLutRect;
+#ifdef ANDROID
+    rga_rect_t tmpSrcRect, tmpDstRect, tmpLutRect;
+#endif
+    struct rga_req rgaReg;
+    rga2_req compat_req;
+    void *ioc_req = NULL;
     void *srcBuf = NULL;
     void *dstBuf = NULL;
     void *lutBuf = NULL;
@@ -2121,20 +2130,20 @@ int RgaCollorPalette(rga_info *src, rga_info *dst, rga_info *lut) {
                                    RkRgaGetRgaFormat(relLutRect.format),0);
 #else
         NormalRgaSetSrcVirtualInfo(&rgaReg, (unsigned long)srcBuf,
-                                   (unsigned int)srcBuf + srcVirW * srcVirH,
-                                   (unsigned int)srcBuf + srcVirW * srcVirH * 5/4,
+                                   (uintptr_t)srcBuf + srcVirW * srcVirH,
+                                   (uintptr_t)srcBuf + srcVirW * srcVirH * 5/4,
                                    srcVirW, srcVirH,
                                    RkRgaGetRgaFormat(relSrcRect.format),0);
         /*dst*/
         NormalRgaSetDstVirtualInfo(&rgaReg, (unsigned long)dstBuf,
-                                   (unsigned int)dstBuf + dstVirW * dstVirH,
-                                   (unsigned int)dstBuf + dstVirW * dstVirH * 5/4,
+                                   (uintptr_t)dstBuf + dstVirW * dstVirH,
+                                   (uintptr_t)dstBuf + dstVirW * dstVirH * 5/4,
                                    dstVirW, dstVirH, &clip,
                                    RkRgaGetRgaFormat(relDstRect.format),0);
         /*lut*/
         NormalRgaSetPatVirtualInfo(&rgaReg, (unsigned long)lutBuf,
-                                   (unsigned int)lutBuf + lutVirW * lutVirH,
-                                   (unsigned int)lutBuf + lutVirW * lutVirH * 5/4,
+                                   (uintptr_t)lutBuf + lutVirW * lutVirH,
+                                   (uintptr_t)lutBuf + lutVirW * lutVirH * 5/4,
                                    lutVirW, lutVirH, &clip,
                                    RkRgaGetRgaFormat(relLutRect.format),0);
 
@@ -2163,9 +2172,9 @@ int RgaCollorPalette(rga_info *src, rga_info *dst, rga_info *lut) {
                                        srcVirW, srcVirH,
                                        RkRgaGetRgaFormat(relSrcRect.format),0);
 #else
-            NormalRgaSetSrcVirtualInfo(&rgaReg, (unsigned int)srcBuf,
-                                       (unsigned int)srcBuf + srcVirW * srcVirH,
-                                       (unsigned int)srcBuf + srcVirW * srcVirH * 5/4,
+            NormalRgaSetSrcVirtualInfo(&rgaReg, (uintptr_t)srcBuf,
+                                       (uintptr_t)srcBuf + srcVirW * srcVirH,
+                                       (uintptr_t)srcBuf + srcVirW * srcVirH * 5/4,
                                        srcVirW, srcVirH,
                                        RkRgaGetRgaFormat(relSrcRect.format),0);
 #endif
@@ -2193,9 +2202,9 @@ int RgaCollorPalette(rga_info *src, rga_info *dst, rga_info *lut) {
                                        dstVirW, dstVirH, &clip,
                                        RkRgaGetRgaFormat(relDstRect.format),0);
 #else
-            NormalRgaSetDstVirtualInfo(&rgaReg, (unsigned int)dstBuf,
-                                       (unsigned int)dstBuf + dstVirW * dstVirH,
-                                       (unsigned int)dstBuf + dstVirW * dstVirH * 5/4,
+            NormalRgaSetDstVirtualInfo(&rgaReg, (uintptr_t)dstBuf,
+                                       (uintptr_t)dstBuf + dstVirW * dstVirH,
+                                       (uintptr_t)dstBuf + dstVirW * dstVirH * 5/4,
                                        dstVirW, dstVirH, &clip,
                                        RkRgaGetRgaFormat(relDstRect.format),0);
 #endif
@@ -2223,9 +2232,9 @@ int RgaCollorPalette(rga_info *src, rga_info *dst, rga_info *lut) {
                                        lutVirW, lutVirH, &clip,
                                        RkRgaGetRgaFormat(relLutRect.format),0);
 #else
-            NormalRgaSetPatVirtualInfo(&rgaReg, (unsigned int)lutBuf,
-                                       (unsigned int)lutBuf + lutVirW * lutVirH,
-                                       (unsigned int)lutBuf + lutVirW * lutVirH * 5/4,
+            NormalRgaSetPatVirtualInfo(&rgaReg, (uintptr_t)lutBuf,
+                                       (uintptr_t)lutBuf + lutVirW * lutVirH,
+                                       (uintptr_t)lutBuf + lutVirW * lutVirH * 5/4,
                                        lutVirW, lutVirH, &clip,
                                        RkRgaGetRgaFormat(relLutRect.format),0);
 #endif
@@ -2285,20 +2294,20 @@ int RgaCollorPalette(rga_info *src, rga_info *dst, rga_info *lut) {
                                    RkRgaGetRgaFormat(relLutRect.format),0);
 #else
         NormalRgaSetSrcVirtualInfo(&rgaReg, srcFd != -1 ? srcFd : 0,
-                                   (unsigned int)srcBuf,
-                                   (unsigned int)srcBuf + srcVirW * srcVirH,
+                                   (uintptr_t)srcBuf,
+                                   (uintptr_t)srcBuf + srcVirW * srcVirH,
                                    srcVirW, srcVirH,
                                    RkRgaGetRgaFormat(relSrcRect.format),0);
         /*dst*/
         NormalRgaSetDstVirtualInfo(&rgaReg, dstFd != -1 ? dstFd : 0,
-                                   (unsigned int)dstBuf,
-                                   (unsigned int)dstBuf + dstVirW * dstVirH,
+                                   (uintptr_t)dstBuf,
+                                   (uintptr_t)dstBuf + dstVirW * dstVirH,
                                    dstVirW, dstVirH, &clip,
                                    RkRgaGetRgaFormat(relDstRect.format),0);
         /*lut*/
         NormalRgaSetPatVirtualInfo(&rgaReg, lutFd != -1 ? lutFd : 0,
-                                  (unsigned int)lutBuf,
-                                  (unsigned int)lutBuf + lutVirW * lutVirH,
+                                  (uintptr_t)lutBuf,
+                                  (uintptr_t)lutBuf + lutVirW * lutVirH,
                                   lutVirW, lutVirH, &clip,
                                   RkRgaGetRgaFormat(relLutRect.format),0);
 
@@ -2357,17 +2366,28 @@ int RgaCollorPalette(rga_info *src, rga_info *dst, rga_info *lut) {
         rgaReg.fading.g = 0xff;
         rgaReg.render_mode = update_palette_table_mode;
 
-        if(ioctl(ctx->rgaFd, RGA_BLIT_SYNC, &rgaReg) != 0) {
+        switch (ctx->driver) {
+            case RGA_DRIVER_IOC_RGA2:
+                memset(&compat_req, 0x0, sizeof(compat_req));
+                NormalRgaCompatModeConvertRga2(&compat_req, &rgaReg);
+                ioc_req = &compat_req;
+                break;
+            case RGA_DRIVER_IOC_MULTI_RGA:
+                ioc_req = &rgaReg;
+                break;
+            default:
+                printf("unknow driver[0x%x]\n", ctx->driver);
+                return -EINVAL;
+        }
+
+        if (ioctl(ctx->rgaFd, RGA_BLIT_SYNC, ioc_req) != 0) {
             printf("update palette table mode ioctl err\n");
-            return -1;
+            return -errno;
         }
     }
 
     rgaReg.render_mode = color_palette_mode;
     rgaReg.endian_mode = 1;
-
-    void *ioc_req = NULL;
-    rga2_req compat_req;
 
     switch (ctx->driver) {
         case RGA_DRIVER_IOC_RGA2:
@@ -2387,7 +2407,7 @@ int RgaCollorPalette(rga_info *src, rga_info *dst, rga_info *lut) {
     }
 
     do {
-        ret = ioctl(ctx->rgaFd, RGA_BLIT_SYNC, &ioc_req);
+        ret = ioctl(ctx->rgaFd, RGA_BLIT_SYNC, ioc_req);
     } while (ret == -1 && (errno == EINTR || errno == 512));   /* ERESTARTSYS is 512. */
     if(ret) {
         printf(" %s(%d) RGA_COLOR_PALETTE fail: %s\n",__FUNCTION__, __LINE__,strerror(errno));

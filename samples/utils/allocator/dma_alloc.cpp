@@ -90,18 +90,44 @@ int dma_sync_cpu_to_device(int fd) {
     return ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync);
 }
 
+const char *dma_buf_select_heap(const char *preferred_path) {
+    if (preferred_path == NULL)
+        return NULL;
+
+    if (access(preferred_path, F_OK) == 0)
+        return preferred_path;
+
+    if ((strcmp(preferred_path, DMA_HEAP_DMA32_UNCACHED_PATH) == 0 ||
+         strcmp(preferred_path, DMA_HEAP_DMA32_PATH) == 0) &&
+        access(DMA_HEAP_RESERVED_PATH, F_OK) == 0) {
+        return DMA_HEAP_RESERVED_PATH;
+    }
+
+    return preferred_path;
+}
+
 int dma_buf_alloc(const char *path, size_t size, int *fd, void **va) {
     int ret;
     int prot;
     void *mmap_va;
     int dma_heap_fd = -1;
+    const char *selected_path;
     struct dma_heap_allocation_data buf_data;
 
+    selected_path = dma_buf_select_heap(path);
+    if (selected_path == NULL)
+        return -EINVAL;
+
+    if (strcmp(selected_path, path) != 0)
+        printf("DMA32 heap %s is unavailable; use compatible low-memory heap %s.\n",
+               path, selected_path);
+
     /* open dma_heap fd */
-    dma_heap_fd = open(path, O_RDWR);
+    dma_heap_fd = open(selected_path, O_RDWR);
     if (dma_heap_fd < 0) {
-        printf("open %s fail!\n", path);
-        return dma_heap_fd;
+        int saved_errno = errno;
+        printf("open %s fail: %s\n", selected_path, strerror(saved_errno));
+        return -saved_errno;
     }
 
     /* alloc buffer */
@@ -111,8 +137,10 @@ int dma_buf_alloc(const char *path, size_t size, int *fd, void **va) {
     buf_data.fd_flags = O_CLOEXEC | O_RDWR;
     ret = ioctl(dma_heap_fd, DMA_HEAP_IOCTL_ALLOC, &buf_data);
     if (ret < 0) {
-        printf("RK_DMA_HEAP_ALLOC_BUFFER failed\n");
-        return ret;
+        int saved_errno = errno;
+        printf("DMA_HEAP_IOCTL_ALLOC on %s failed: %s\n", selected_path, strerror(saved_errno));
+        close(dma_heap_fd);
+        return -saved_errno;
     }
 
     /* mmap va */
@@ -124,8 +152,11 @@ int dma_buf_alloc(const char *path, size_t size, int *fd, void **va) {
     /* mmap contiguors buffer to user */
     mmap_va = (void *)mmap(NULL, buf_data.len, prot, MAP_SHARED, buf_data.fd, 0);
     if (mmap_va == MAP_FAILED) {
-        printf("mmap failed: %s\n", strerror(errno));
-        return -errno;
+        int saved_errno = errno;
+        printf("mmap failed: %s\n", strerror(saved_errno));
+        close(buf_data.fd);
+        close(dma_heap_fd);
+        return -saved_errno;
     }
 
     *va = mmap_va;

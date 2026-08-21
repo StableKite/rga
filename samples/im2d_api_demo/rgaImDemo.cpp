@@ -24,6 +24,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <memory.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
 
@@ -167,7 +168,14 @@ int main(int argc, char*  argv[]) {
     heap_name = RV1106_CMA_HEAP_PATH;
     flush_cache = true;
 #else
-    heap_name = DMA_HEAP_DMA32_UNCACHED_PATH;
+    heap_name = dma_buf_select_heap(DMA_HEAP_DMA32_UNCACHED_PATH);
+    if (strcmp(heap_name, DMA_HEAP_RESERVED_PATH) == 0) {
+        /* The standard CMA heap is cacheable. Keep CPU/RGA views coherent
+         * when it is used as the verified low-memory fallback for RGA2. */
+        flush_cache = true;
+        printf("DMA32 heap is unavailable; using low-memory CMA fallback \"%s\".\n",
+               heap_name);
+    }
 #endif
 
     /********** Get parameters **********/
@@ -565,6 +573,10 @@ free_buffer:
         }
     }
 
-    return ret;
+    /* IM_STATUS_SUCCESS is 1, which is a success value for librga but a
+     * failure exit status for POSIX shells. Convert the demo result to the
+     * conventional process status so automated validation can distinguish
+     * real RGA errors from successful operations. */
+    return ret == IM_STATUS_SUCCESS ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

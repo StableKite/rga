@@ -434,9 +434,7 @@ void imsetOptGaussianBlurMatrix(im_opt_t *opt,
 
 #ifdef __cplusplus
 IM_API const char* querystring(int name) {
-    bool all_output = 0, all_output_prepared = 0;
-    int rga_version = 0;
-    long usage = 0;
+    bool all_output = false, all_output_prepared = false;
     enum {
         RGA_API = 0,
     };
@@ -1160,10 +1158,8 @@ IM_API IM_STATUS imosd(const rga_buffer_t osd,const rga_buffer_t dst,
                        const im_rect osd_rect, im_osd_t *osd_info,
                        int sync, int *release_fence_fd) {
     int usage = 0;
-    im_opt_t opt;
+    im_opt_t opt{};
     im_rect tmp_rect;
-
-    memset(&opt, 0x0, sizeof(opt));
     memset(&tmp_rect, 0x0, sizeof(tmp_rect));
 
     opt.version = RGA_CURRENT_API_VERSION;
@@ -1264,13 +1260,11 @@ IM_API IM_STATUS imrop(const rga_buffer_t src, rga_buffer_t dst, int rop_code, i
 }
 
 IM_API IM_STATUS immosaic(const rga_buffer_t image, im_rect rect, int mosaic_mode, int sync, int *release_fence_fd) {
-    IM_STATUS ret = IM_STATUS_NOERROR;
     int usage = 0;
-    im_opt_t opt;
+    im_opt_t opt{};
     rga_buffer_t tmp_image;
     im_rect tmp_rect;
 
-    memset(&opt, 0x0, sizeof(opt));
     memset(&tmp_image, 0x0, sizeof(tmp_image));
     memset(&tmp_rect, 0x0, sizeof(tmp_rect));
 
@@ -1315,7 +1309,6 @@ IM_API IM_STATUS imgaussianBlur(rga_buffer_t src, rga_buffer_t dst,
                                 int gauss_width, int gauss_height,
                                 int sigma_x, int sigma_y, int sync, int *release_fence_fd) {
     int usage = 0;
-    IM_STATUS ret = IM_STATUS_NOERROR;
     rga_buffer_t pat;
     im_rect srect;
     im_rect drect;
@@ -1873,10 +1866,8 @@ IM_API IM_STATUS imosdTask(im_job_handle_t job_handle,
                            const rga_buffer_t osd,const rga_buffer_t bg_image,
                            const im_rect osd_rect, im_osd_t *osd_config) {
     int usage = 0;
-    im_opt_t opt;
+    im_opt_t opt{};
     im_rect tmp_rect;
-
-    memset(&opt, 0x0, sizeof(opt));
     memset(&tmp_rect, 0x0, sizeof(tmp_rect));
 
     opt.version = RGA_CURRENT_API_VERSION;
@@ -1923,11 +1914,9 @@ IM_API IM_STATUS imropTask(im_job_handle_t job_handle, const rga_buffer_t src, r
 
 IM_API IM_STATUS immosaicTask(im_job_handle_t job_handle, const rga_buffer_t image, im_rect rect, int mosaic_mode) {
     int usage = 0;
-    im_opt_t opt;
+    im_opt_t opt{};
     rga_buffer_t tmp_image;
     im_rect tmp_rect;
-
-    memset(&opt, 0x0, sizeof(opt));
     memset(&tmp_image, 0x0, sizeof(tmp_image));
     memset(&tmp_rect, 0x0, sizeof(tmp_rect));
 

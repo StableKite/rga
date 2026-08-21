@@ -3,14 +3,29 @@ project(
     'cpp',
     version : '2.1.0',
     meson_version : '>=0.47.0',
-    default_options : ['warning_level=3', 'cpp_std=c++14']
+    default_options : [
+        'buildtype=release',
+        'warning_level=3',
+        'werror=true',
+        'b_lto=true',
+        'cpp_std=c++11'
+    ]
 )
 
 pkgconfig = import('pkgconfig')
-
 libthreads_dep = dependency('threads')
+cc = meson.get_compiler('cpp')
 
-add_project_arguments('-DLINUX=1', language : 'cpp')
+project_cpp_args = ['-DLINUX=1', '-DUN_NEED_GL']
+if get_option('native_optimization') and not meson.is_cross_build()
+    if cc.has_argument('-march=native')
+        project_cpp_args += ['-march=native']
+    endif
+    if cc.has_argument('-mtune=native')
+        project_cpp_args += ['-mtune=native']
+    endif
+endif
+add_project_arguments(project_cpp_args, language : 'cpp')
 
 librga_srcs = [
     'core/utils/android_utils/src/android_utils.cpp',
@@ -23,6 +38,7 @@ librga_srcs = [
     'core/RgaUtils_symbol.cpp',
     'core/RockchipRga.cpp',
     'core/RgaApi.cpp',
+    'core/rga_gralloc.cpp',
     'core/rga_sync.cpp',
     'im2d_api/src/im2d_log.cpp',
     'im2d_api/src/im2d_debugger.cpp',
@@ -33,30 +49,32 @@ librga_srcs = [
 ]
 
 incdir = include_directories(
+    '.',
     'include',
     'im2d_api',
     'core',
     'core/hardware',
     'core/utils',
+    'core/adapter',
     'core/3rdparty/libdrm/include/drm',
-    'core/3rdparty/android_hal')
+    'core/3rdparty/android_hal'
+)
 
-librga = shared_library(
+# Keep shared and static outputs in the default build.  They use the exact same
+# source list so neither variant can silently lose functionality.
+librga_shared = shared_library(
     'rga',
     librga_srcs,
     dependencies : [libthreads_dep],
     include_directories : incdir,
-    version : meson.project_version(),
-    cpp_args : ['-w'],
     install : true,
 )
 
-librga = static_library(
+librga_static = static_library(
     'rga',
     librga_srcs,
     dependencies : [libthreads_dep],
     include_directories : incdir,
-    cpp_args : ['-w'],
     install : true,
 )
 
@@ -83,7 +101,7 @@ install_headers(
 )
 
 pkgconfig.generate(
-    libraries : librga,
+    libraries : librga_shared,
     filebase : 'librga',
     name : 'librga',
     version : meson.project_version(),
@@ -105,16 +123,14 @@ if librga_demo_option != 'false'
         'im2d_api',
         'samples/utils',
         'samples/utils/allocator/include',
-        'utils/3rdparty/libdrm/include',
-        'utils/3rdparty/libdrm/include/libdrm'
+        'samples/utils/3rdparty/libdrm/include',
+        'samples/utils/3rdparty/libdrm/include/libdrm'
     )
-    librga_dep = dependency('librga')
     executable(
         'rgaImDemo',
         demo_src,
         include_directories : demo_incdir,
-        dependencies : librga_dep,
-        cpp_args : ['-Wno-pedantic'],
+        link_with : librga_shared,
         install : true,
     )
 endif

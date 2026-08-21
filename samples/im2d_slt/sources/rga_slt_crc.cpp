@@ -136,7 +136,12 @@ int save_crc_table_to_file(const char *suffix_name) {
 
     for (int thread_id = 0; thread_id < RGA_SLT_THREAD_MAX; thread_id++) {
         for (int i = 0; i < RGA_SLT_CASE_MAX; i++) {
-            fwrite(&g_generated_golden_data[thread_id][i], sizeof(unsigned int), 1, crc_file);
+            if (fwrite(&g_generated_golden_data[thread_id][i], sizeof(unsigned int), 1, crc_file) != 1) {
+                printf("%s,%d:Failed to write CRC golden data to %s\n",
+                       __FUNCTION__, __LINE__, file_name);
+                fclose(crc_file);
+                return -1;
+            }
         }
     }
 
@@ -175,7 +180,12 @@ const rga_slt_crc_table *read_crc_table_from_file(const char *suffix_name) {
         }
 
         fseek(crc_file, 0, SEEK_SET);
-        fread((void*)&g_generated_golden_data, size, 1, crc_file);
+        if (fread((void*)&g_generated_golden_data, 1, (size_t)size, crc_file) != (size_t)size) {
+            printf("%s,%d:Failed to read CRC golden data from %s\n",
+                   __FUNCTION__, __LINE__, file_name);
+            fclose(crc_file);
+            return NULL;
+        }
         fclose(crc_file);
 
         printf("Read CRC golden data from file: %s\n", file_name);

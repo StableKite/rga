@@ -1,0 +1,5 @@
+# Upstream base for the local hardening commit. The preserved branch retains this Git ancestry.
+upstream_repository=https://github.com/JeffyCN/mirrors.git
+upstream_branch=linux-rga-multi
+upstream_commit=57a1067a246c71fa6c9a355d1668884fda155dd5
+upstream_tree=4b0d887112bce1ec847830106731d4e1805fb5d3

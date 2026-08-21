@@ -42,9 +42,9 @@ if(CMAKE_BUILD_TARGET STREQUAL cmake_linux)
         message(FATAL_ERROR "RGA: CMAKE_CXX_COMPILER not define")
     endif()
 
-    set(RKRGA_TARGET_SOC rv1106)
-
-    if(RKRGA_TARGET_SOC STREQUAL rv1106)
+    # Do not hard-code rv1106 for generic native Linux builds.
+    # RK3588 needs the DMA32 heap path; rv1106 uses its Rockchip CMA heap.
+    if(DEFINED RKRGA_TARGET_SOC AND RKRGA_TARGET_SOC STREQUAL "rv1106")
         add_definitions(-DUSE_RV1106_CMA=1)
     endif()
 endif()
