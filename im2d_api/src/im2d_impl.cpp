@@ -2437,9 +2437,8 @@ IM_STATUS rga_job_cancel(im_job_handle_t job_handle) {
     if (job != NULL) {
         rga_map_delete_job(&g_im2d_job_manager.job_map, job_handle);
         free(job);
+        g_im2d_job_manager.job_count--;
     }
-
-    g_im2d_job_manager.job_count--;
 
     pthread_mutex_unlock(&g_im2d_job_manager.mutex);
 
