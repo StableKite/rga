@@ -454,6 +454,12 @@ IM_STATUS rga_get_info(struct rga_hw_versions_t *version, rga_info_table_entry *
     int rga_version = 0;
     rga_info_table_entry merge_table;
 
+    if (version == NULL || return_table == NULL ||
+        version->size == 0 || version->size > RGA_HW_SIZE) {
+        IM_LOGE("invalid RGA hardware version descriptor");
+        return IM_STATUS_ILLEGAL_PARAM;
+    }
+
     memset(&merge_table, 0x0, sizeof(merge_table));
 
     for (uint32_t i = 0; i < version->size; i++) {
