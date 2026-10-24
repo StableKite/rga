@@ -2380,7 +2380,7 @@ im_job_handle_t rga_job_create(uint32_t flags) {
 
     session = get_rga_session();
     if (IS_ERR(session))
-        return (IM_STATUS)PTR_ERR(session);
+        return 0;
 
     if (ioctl(session->rga_dev_fd, RGA_IOC_REQUEST_CREATE, &flags) < 0) {
         IM_LOGE(" %s(%d) request create fail: %s\n",__FUNCTION__, __LINE__,strerror(errno));
