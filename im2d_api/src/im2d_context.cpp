@@ -246,6 +246,9 @@ int get_debug_state(void) {
 
     session = get_rga_session();
 
+    if (IS_ERR_OR_NULL(session))
+        return 0;
+
     pthread_rwlock_wrlock(&session->rwlock);
     rga_log_level_update();
     session->is_debug = rga_log_enable_update();
@@ -260,6 +263,9 @@ int is_debug_en(void) {
     bool is_debug;
 
     session = get_rga_session();
+
+    if (IS_ERR_OR_NULL(session))
+        return 0;
 
     pthread_rwlock_rdlock(&session->rwlock);
     is_debug = session->is_debug;
