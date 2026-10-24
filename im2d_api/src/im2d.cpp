@@ -534,7 +534,7 @@ IM_API const char* querystring(int name) {
     rga_info_table_entry *rga_info;
 
     session = get_rga_session();
-    if (session == NULL)
+    if (IS_ERR_OR_NULL(session))
         return imStrError(IM_STATUS_NO_SESSION);
 
     rga_info = &session->hardware_info;
