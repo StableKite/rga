@@ -127,7 +127,7 @@ IM_API const char* imStrError_t(IM_STATUS status) {
             return "unkown status";
     }
 
-    snprintf(error_str, IM_ERR_MSG_LEN, "%s: %s", ptr, g_rga_err_str);
+    snprintf(error_str, IM_ERR_MSG_LEN, "%s: %.482s", ptr, g_rga_err_str);
     rga_error_msg_set("No error message, it has been cleared.");
 
     return error_str;
