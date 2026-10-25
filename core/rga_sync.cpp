@@ -106,7 +106,7 @@ int rga_sync_wait(int fd, int timeout)
     do {
         ret = poll(&fds, 1, timeout);
         if (ret > 0) {
-            if (fds.revents & (POLLERR | POLLNVAL)) {
+            if ((fds.revents & (POLLERR | POLLNVAL)) || !(fds.revents & POLLIN)) {
                 errno = EINVAL;
                 return -1;
             }
